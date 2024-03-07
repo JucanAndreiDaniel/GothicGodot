@@ -1,6 +1,15 @@
-[gd_scene load_steps=2 format=3 uid="uid://b05pnjb3kat1b"]
+[gd_scene load_steps=5 format=3 uid="uid://b05pnjb3kat1b"]
 
-[ext_resource type="PackedScene" path="res://zenkit_singleton.tscn" id="2_la5td"]
+[ext_resource type="PackedScene" uid="uid://b4xivd2xjslkr" path="res://zenkit_singleton.tscn" id="1_wftln"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_dy3pq"]
+
+[sub_resource type="Sky" id="Sky_cilrh"]
+sky_material = SubResource("ProceduralSkyMaterial_dy3pq")
+
+[sub_resource type="Environment" id="Environment_tm50l"]
+background_mode = 2
+sky = SubResource("Sky_cilrh")
 
 [node name="Node3D" type="Node3D"]
 
@@ -9,7 +18,15 @@ transform = Transform3D(-0.866025, -0.5, -2.18557e-08, 0, -4.37114e-08, 1, -0.5,
 light_angular_distance = 14.9
 directional_shadow_max_distance = 8192.0
 
-[node name="ZenkitSingleton" parent="." instance=ExtResource("2_la5td")]
+[node name="ZenkitSingleton" parent="." instance=ExtResource("1_wftln")]
+G1Dir = "D:\\\\SteamLibrary\\\\steamapps\\\\common\\\\Gothic"
+worldName = "world"
+SkipPortals = true
 
 [node name="WorldRoot" type="Node3D" parent="ZenkitSingleton"]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="Camera3D" type="Camera3D" parent="."]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_tm50l")

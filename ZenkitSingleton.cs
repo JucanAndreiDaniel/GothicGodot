@@ -11,12 +11,11 @@ using Texture = ZenKit.Texture;
 [Tool]
 public partial class ZenkitSingleton : Node
 {
-    ~ZenkitSingleton()
-    {
-        Dispose();
-    }
-
     private ZenKit.Vfs Vfs { get; set; }
+
+    [Export] private string G1Dir { get; set; }
+    [Export] private string worldName { get; set; }
+    [Export] private bool SkipPortals { get; set; }
 
     public void MountVfs(string g1Dir)
     {
@@ -39,17 +38,33 @@ public partial class ZenkitSingleton : Node
         button.Text = "Load World";
         button.Pressed += LoadWorld;
         inspector.AddCustomControl(button);
+
+        Button button2 = new Button();
+        button2.Text = "Unload World";
+        button2.Pressed += ResetWorld;
+        inspector.AddCustomControl(button2);
     }
 #endif
 
-    protected void LoadWorld()
+    private void ResetWorld()
     {
-        // FIXME: dont use hardcoded path
-        MountVfs("D:\\Games\\Gothic");
-        var zkWorld = new ZenKit.World(Vfs, "world.zen");
+        var rootNode = GetNode("WorldRoot");
 
+        foreach (var child in rootNode.GetChildren())
+        {
+            rootNode.RemoveChild(child);
+            child.QueueFree();
+        }
+    }
 
-        var subMeshes = CreateSubMeshesForUnity(zkWorld.Mesh, zkWorld.BspTree);
+    private void LoadWorld()
+    {
+        MountVfs(G1Dir);
+
+        var worldToLoad = worldName.ToUpperInvariant().Contains(".zen") ? worldName : $"{worldName}.zen";
+        var zkWorld = new ZenKit.World(Vfs, worldToLoad);
+
+        var subMeshes = CreateSubMeshesForGodot(zkWorld.Mesh, zkWorld.BspTree);
 
         //create a root node 
 
@@ -63,34 +78,14 @@ public partial class ZenkitSingleton : Node
             var gdMesh = new ArrayMesh();
 
             var array = new Godot.Collections.Array();
-            var vertices = new List<Vector3>();
-            var normals = new List<Vector3>();
-            var uvs = new List<Vector2>();
 
             array.Resize((int)Mesh.ArrayType.Max);
 
-            foreach (var vertex in subMesh.Vertices)
-            {
-                vertices.Add(ToGodotVector(vertex));
-            }
-
-            foreach (var normal in subMesh.Normals)
-            {
-                normals.Add(ToGodotVector(normal));
-            }
-
-            foreach (var uv in subMesh.Uvs)
-            {
-                uvs.Add(ToGodotVector(uv));
-            }
-
-            array[(int)Mesh.ArrayType.Vertex] = vertices.ToArray();
-            array[(int)Mesh.ArrayType.Normal] = normals.ToArray();
-            // array[(int)Mesh.ArrayType.Color] = colors.ToArray();
-            array[(int)Mesh.ArrayType.TexUV] = uvs.ToArray();
+            array[(int)Mesh.ArrayType.Vertex] = subMesh.Vertices.Select(ToGodotVector).ToArray();
+            array[(int)Mesh.ArrayType.Normal] = subMesh.Normals.Select(ToGodotVector).ToArray();
+            array[(int)Mesh.ArrayType.TexUV] = subMesh.Uvs.Select(ToGodotVector).ToArray();
 
             gdMesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, array);
-
 
             var mi = new MeshInstance3D();
             mi.Name = subMesh.Material.Name;
@@ -98,9 +93,6 @@ public partial class ZenkitSingleton : Node
             material.AlbedoTexture = ToGodotImageTexture(subMesh.Material.Texture);
             material.SpecularMode = BaseMaterial3D.SpecularModeEnum.Disabled;
             material.MetallicSpecular = 0;
-            // material.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            if (subMesh.Material.Group == MaterialGroup.Water || material.AlbedoTexture.HasAlpha())
-                material.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
 
             material.Uv1Scale = 100 * Vector3.One;
             mi.MaterialOverride = material;
@@ -131,29 +123,17 @@ public partial class ZenkitSingleton : Node
         var texture = LoadZenkitTexture(path);
         var image = new Image();
 
-        switch (texture.Format)
-        {
-            case TextureFormat.Dxt1:
-                image.SetData(texture.Width, texture.Height, false, Image.Format.Dxt1,
-                    texture.GetMipmapRaw(0));
-                break;
-            case TextureFormat.Dxt3:
-                image.SetData(texture.Width, texture.Height, false, Image.Format.Dxt3,
-                    texture.GetMipmapRaw(0));
-                break;
-            default:
-                image.SetData(texture.Width, texture.Height, false, Image.Format.Rgba8,
-                    texture.GetMipmapRgba(0));
-                image.GenerateMipmaps();
-                break;
-        }
+        image.SetData(texture.Width, texture.Height, false, Image.Format.Rgba8,
+            texture.GetMipmapRgba(0));
+        image.GenerateMipmaps();
+
 
         var imageTexture = new ImageTexture();
         imageTexture = ImageTexture.CreateFromImage(image);
         return imageTexture;
     }
 
-    private static Dictionary<int, WorldData.SubMeshData> CreateSubMeshesForUnity(IMesh zkMesh, IBspTree zkBspTree)
+    private Dictionary<int, WorldData.SubMeshData> CreateSubMeshesForGodot(IMesh zkMesh, IBspTree zkBspTree)
     {
         var zkMaterials = zkMesh.Materials;
         var zkPolygons = zkMesh.Polygons;
@@ -177,9 +157,9 @@ public partial class ZenkitSingleton : Node
         {
             var polygon = zkPolygons[leafPolygonIndex];
             var currentSubMesh = subMeshes[polygon.MaterialIndex];
-            //
-            // if (polygon.IsPortal)
-            //     continue;
+
+            if (polygon.IsPortal && SkipPortals)
+                continue;
 
             // As we always use element 0 and i+1, we skip it in the loop.
             for (var i = 1; i < polygon.PositionIndices.Count - 1; i++)
@@ -190,14 +170,6 @@ public partial class ZenkitSingleton : Node
                 AddEntry(zkPositions, zkFeatures, zkLightmaps, polygon, currentSubMesh, i + 1);
             }
         }
-
-        // To have easier to read code above, we reverse the arrays now at the end.
-        // foreach (var subMesh in subMeshes)
-        // {
-        //     subMesh.Value.Vertices.Reverse();
-        //     subMesh.Value.Uvs.Reverse();
-        //     subMesh.Value.Normals.Reverse();
-        // }
 
         return subMeshes;
     }
