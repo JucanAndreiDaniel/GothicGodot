@@ -19,14 +19,11 @@ light_angular_distance = 14.9
 directional_shadow_max_distance = 8192.0
 
 [node name="ZenkitSingleton" parent="." instance=ExtResource("1_wftln")]
-G1Dir = "D:\\\\SteamLibrary\\\\steamapps\\\\common\\\\Gothic"
-worldName = "world"
-SkipPortals = true
+G1Dir = ""
+worldName = ""
 
 [node name="WorldRoot" type="Node3D" parent="ZenkitSingleton"]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
-
-[node name="Camera3D" type="Camera3D" parent="."]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_tm50l")

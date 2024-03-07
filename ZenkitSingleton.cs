@@ -23,9 +23,15 @@ public partial class ZenkitSingleton : Node
 
         var fullPath = Path.GetFullPath(Path.Join(g1Dir, "Data"));
 
-        var vfsPaths = Directory.GetFiles(fullPath, "*.VDF", SearchOption.AllDirectories);
+        var vfsVDFPaths = Directory.GetFiles(fullPath, "*.VDF", SearchOption.AllDirectories);
+        var vfsMODPaths = Directory.GetFiles(fullPath, "*.MOD", SearchOption.AllDirectories);
 
-        foreach (var path in vfsPaths)
+        foreach (var path in vfsVDFPaths)
+        {
+            Vfs.MountDisk(path, VfsOverwriteBehavior.Older);
+        }
+
+        foreach (var path in vfsMODPaths)
         {
             Vfs.MountDisk(path, VfsOverwriteBehavior.Older);
         }
