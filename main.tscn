@@ -1,6 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://b05pnjb3kat1b"]
 
 [ext_resource type="PackedScene" uid="uid://b4xivd2xjslkr" path="res://zenkit_singleton.tscn" id="1_wftln"]
+[ext_resource type="Script" path="res://free_look_camera.gd" id="2_vlwv7"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_dy3pq"]
 
@@ -27,3 +28,8 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_tm50l")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 10, 0)
+size = 1000.0
+script = ExtResource("2_vlwv7")
