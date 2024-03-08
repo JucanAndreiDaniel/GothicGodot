@@ -3,10 +3,10 @@
 [ext_resource type="PackedScene" uid="uid://b4xivd2xjslkr" path="res://zenkit_singleton.tscn" id="1_wftln"]
 [ext_resource type="Script" path="res://free_look_camera.gd" id="2_vlwv7"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_dy3pq"]
+[sub_resource type="PhysicalSkyMaterial" id="PhysicalSkyMaterial_q74fi"]
 
 [sub_resource type="Sky" id="Sky_cilrh"]
-sky_material = SubResource("ProceduralSkyMaterial_dy3pq")
+sky_material = SubResource("PhysicalSkyMaterial_q74fi")
 
 [sub_resource type="Environment" id="Environment_tm50l"]
 background_mode = 2

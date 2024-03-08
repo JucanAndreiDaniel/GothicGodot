@@ -4,7 +4,6 @@ using System.Linq;
 using Godot;
 using ZenKit;
 using ZenKit.Vobs;
-using Material = Godot.Material;
 using Mesh = Godot.Mesh;
 using Texture = ZenKit.Texture;
 
@@ -16,6 +15,10 @@ public partial class ZenkitSingleton : Node
     [Export] private string G1Dir { get; set; }
     [Export] private string worldName { get; set; }
     [Export] private bool SkipPortals { get; set; }
+
+    private Dictionary<string, ImageTexture> textureCache = new();
+
+    private bool isLoaded = false;
 
     public void MountVfs(string g1Dir)
     {
@@ -52,6 +55,17 @@ public partial class ZenkitSingleton : Node
     }
 #endif
 
+    public override void _Ready()
+    {
+        if (Engine.IsEditorHint()) return;
+
+        if (G1Dir == "")
+            G1Dir = "D:\\games\\gothic";
+        if (worldName == "")
+            worldName = "world";
+        LoadWorld();
+    }
+
     private void ResetWorld()
     {
         var rootNode = GetNode("WorldRoot");
@@ -65,6 +79,7 @@ public partial class ZenkitSingleton : Node
 
     private void LoadWorld()
     {
+        GD.Print("Loading World");
         MountVfs(G1Dir);
 
         var worldToLoad = worldName.ToUpperInvariant().Contains(".zen") ? worldName : $"{worldName}.zen";
@@ -126,6 +141,9 @@ public partial class ZenkitSingleton : Node
 
     private ImageTexture ToGodotImageTexture(string path)
     {
+        if (textureCache.TryGetValue(path, out var godotImageTexture))
+            return godotImageTexture;
+
         var texture = LoadZenkitTexture(path);
         var image = new Image();
 
@@ -136,6 +154,7 @@ public partial class ZenkitSingleton : Node
 
         var imageTexture = new ImageTexture();
         imageTexture = ImageTexture.CreateFromImage(image);
+        textureCache.Add(path, imageTexture);
         return imageTexture;
     }
 
@@ -210,11 +229,6 @@ public partial class ZenkitSingleton : Node
     private Vector2 ToGodotVector(System.Numerics.Vector2 vector3)
     {
         return new(vector3.X / 100, vector3.Y / 100);
-    }
-
-    // Called every frame. 'delta' is the elapsed time since the previous frame.
-    public override void _Process(double delta)
-    {
     }
 }
 
