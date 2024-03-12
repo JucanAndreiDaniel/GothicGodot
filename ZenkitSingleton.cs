@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Godot;
+using GothicGodot;
 using ZenKit;
 using ZenKit.Vobs;
 using Mesh = Godot.Mesh;
@@ -10,8 +11,6 @@ using Texture = ZenKit.Texture;
 [Tool]
 public partial class ZenkitSingleton : Node
 {
-    private ZenKit.Vfs Vfs { get; set; }
-
     [Export] private string G1Dir { get; set; }
     [Export] private string worldName { get; set; }
     [Export] private bool SkipPortals { get; set; }
@@ -22,7 +21,7 @@ public partial class ZenkitSingleton : Node
 
     public void MountVfs(string g1Dir)
     {
-        Vfs = new Vfs();
+        GameData.Vfs = new Vfs();
 
         var fullPath = Path.GetFullPath(Path.Join(g1Dir, "Data"));
 
@@ -31,12 +30,12 @@ public partial class ZenkitSingleton : Node
 
         foreach (var path in vfsVDFPaths)
         {
-            Vfs.MountDisk(path, VfsOverwriteBehavior.Older);
+            GameData.Vfs.MountDisk(path, VfsOverwriteBehavior.Older);
         }
 
         foreach (var path in vfsMODPaths)
         {
-            Vfs.MountDisk(path, VfsOverwriteBehavior.Older);
+            GameData.Vfs.MountDisk(path, VfsOverwriteBehavior.Older);
         }
     }
 
@@ -45,7 +44,7 @@ public partial class ZenkitSingleton : Node
     {
         Button button = new Button();
         button.Text = "Load World";
-        button.Pressed += LoadWorld;
+        button.Pressed += ProcessWorld;
         inspector.AddCustomControl(button);
 
         Button button2 = new Button();
@@ -63,7 +62,7 @@ public partial class ZenkitSingleton : Node
             G1Dir = "D:\\games\\gothic";
         if (worldName == "")
             worldName = "world";
-        LoadWorld();
+        ProcessWorld();
     }
 
     private void ResetWorld()
@@ -77,52 +76,49 @@ public partial class ZenkitSingleton : Node
         }
     }
 
-    private void LoadWorld()
+    private async void ProcessWorld()
     {
         GD.Print("Loading World");
         MountVfs(G1Dir);
-
-        var worldToLoad = worldName.ToUpperInvariant().Contains(".zen") ? worldName : $"{worldName}.zen";
-        var zkWorld = new ZenKit.World(Vfs, worldToLoad);
-
-        var subMeshes = CreateSubMeshesForGodot(zkWorld.Mesh, zkWorld.BspTree);
-
-        //create a root node 
+        GameData.World = LoadWorld();
 
         var rootNode = GetNode("WorldRoot");
 
-        foreach (var subMesh in subMeshes.Values)
+        var teleportRootNode = new Node3D()
         {
-            if (subMesh.Vertices.Count == 0)
-                continue;
+            Name = "TeleportRoot"
+        };
+        rootNode.AddChild(teleportRootNode);
+        var nonTeleportRootNode = new Node3D()
+        {
+            Name = "NonTeleportRoot"
+        };
+        rootNode.AddChild(nonTeleportRootNode);
 
-            var gdMesh = new ArrayMesh();
+        teleportRootNode.Owner = GetTree().EditedSceneRoot;
+        nonTeleportRootNode.Owner = GetTree().EditedSceneRoot;
 
-            var array = new Godot.Collections.Array();
+        await WorldMeshCreator.CreateAsync(GameData.World, teleportRootNode, 100);
+        await VobCreator.CreateAsync(teleportRootNode, nonTeleportRootNode, GameData.World, 100);
+    }
 
-            array.Resize((int)Mesh.ArrayType.Max);
+    private WorldData LoadWorld()
+    {
+        var worldToLoad = worldName.ToUpperInvariant().Contains(".zen") ? worldName : $"{worldName}.zen";
+        var zkWorld = new World(GameData.Vfs, worldToLoad);
+        var zkMesh = zkWorld.Mesh.Cache();
+        var zkBspTree = zkWorld.BspTree.Cache();
+        var zkWayNet = zkWorld.WayNet.Cache();
 
-            array[(int)Mesh.ArrayType.Vertex] = subMesh.Vertices.Select(ToGodotVector).ToArray();
-            array[(int)Mesh.ArrayType.Normal] = subMesh.Normals.Select(ToGodotVector).ToArray();
-            array[(int)Mesh.ArrayType.TexUV] = subMesh.Uvs.Select(ToGodotVector).ToArray();
+        var subMeshes = CreateSubMeshesForGodot(zkMesh, zkBspTree);
 
-            gdMesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, array);
-
-            var mi = new MeshInstance3D();
-            mi.Name = subMesh.Material.Name;
-            var material = new StandardMaterial3D();
-            material.AlbedoTexture = ToGodotImageTexture(subMesh.Material.Texture);
-            material.SpecularMode = BaseMaterial3D.SpecularModeEnum.Disabled;
-            material.MetallicSpecular = 0;
-
-            material.Uv1Scale = 100 * Vector3.One;
-            mi.MaterialOverride = material;
-
-            mi.Mesh = gdMesh;
-
-            rootNode.AddChild(mi);
-            mi.Owner = GetTree().EditedSceneRoot;
-        }
+        return new WorldData
+        {
+            World = zkWorld,
+            Vobs = zkWorld.RootObjects,
+            WayNet = (CachedWayNet)zkWayNet,
+            SubMeshes = subMeshes
+        };
     }
 
     private ZenKit.Texture LoadZenkitTexture(string path)
@@ -136,27 +132,9 @@ public partial class ZenkitSingleton : Node
             preparedKey = preparedKey.Replace(extension, "");
         if (preparedKey == "")
             preparedKey = "default";
-        return new Texture(Vfs, $"{preparedKey}-C.TEX");
+        return new Texture(GameData.Vfs, $"{preparedKey}-C.TEX");
     }
 
-    private ImageTexture ToGodotImageTexture(string path)
-    {
-        if (textureCache.TryGetValue(path, out var godotImageTexture))
-            return godotImageTexture;
-
-        var texture = LoadZenkitTexture(path);
-        var image = new Image();
-
-        image.SetData(texture.Width, texture.Height, false, Image.Format.Rgba8,
-            texture.GetMipmapRgba(0));
-        image.GenerateMipmaps();
-
-
-        var imageTexture = new ImageTexture();
-        imageTexture = ImageTexture.CreateFromImage(image);
-        textureCache.Add(path, imageTexture);
-        return imageTexture;
-    }
 
     private Dictionary<int, WorldData.SubMeshData> CreateSubMeshesForGodot(IMesh zkMesh, IBspTree zkBspTree)
     {
@@ -191,9 +169,10 @@ public partial class ZenkitSingleton : Node
             {
                 // Triangle Fan - We need to add element 0 (A) before every triangle 2 elements.
                 AddEntry(zkPositions, zkFeatures, zkLightmaps, polygon, currentSubMesh, 0);
-                AddEntry(zkPositions, zkFeatures, zkLightmaps, polygon, currentSubMesh, i);
                 AddEntry(zkPositions, zkFeatures, zkLightmaps, polygon, currentSubMesh, i + 1);
+                AddEntry(zkPositions, zkFeatures, zkLightmaps, polygon, currentSubMesh, i);
             }
+
         }
 
         return subMeshes;
@@ -218,17 +197,6 @@ public partial class ZenkitSingleton : Node
         {
             currentSubMesh.LightMap = lightMaps[(int)polygon.LightMapIndex];
         }
-    }
-
-
-    private Vector3 ToGodotVector(System.Numerics.Vector3 vector3)
-    {
-        return new(vector3.X / 100, vector3.Y / 100, vector3.Z / 100);
-    }
-
-    private Vector2 ToGodotVector(System.Numerics.Vector2 vector3)
-    {
-        return new(vector3.X / 100, vector3.Y / 100);
     }
 }
 
