@@ -169,10 +169,9 @@ public partial class ZenkitSingleton : Node
             {
                 // Triangle Fan - We need to add element 0 (A) before every triangle 2 elements.
                 AddEntry(zkPositions, zkFeatures, zkLightmaps, polygon, currentSubMesh, 0);
-                AddEntry(zkPositions, zkFeatures, zkLightmaps, polygon, currentSubMesh, i + 1);
                 AddEntry(zkPositions, zkFeatures, zkLightmaps, polygon, currentSubMesh, i);
+                AddEntry(zkPositions, zkFeatures, zkLightmaps, polygon, currentSubMesh, i + 1);
             }
-
         }
 
         return subMeshes;

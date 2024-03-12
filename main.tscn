@@ -25,6 +25,7 @@ worldName = "world"
 SkipPortals = true
 
 [node name="WorldRoot" type="Node3D" parent="ZenkitSingleton"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_tm50l")
