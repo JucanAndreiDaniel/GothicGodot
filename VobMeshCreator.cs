@@ -42,8 +42,10 @@ namespace GothicGodot
         {
             // Check if there are completely empty elements without any texture.
             // G1: e.g. Harp, Flute, and WASH_SLOT (usage moved to a FreePoint within daedalus functions)
-            var noMeshTextures = mdm.Meshes.All(mesh => mesh.Mesh.SubMeshes.All(subMesh => subMesh.Material.Texture.Length == 0));
-            var noAttachmentTextures = mdm.Attachments.All(att => att.Value.Materials.All(mat => mat.Texture.Length == 0));
+            var noMeshTextures = mdm.Meshes.All(mesh =>
+                mesh.Mesh.SubMeshes.All(subMesh => subMesh.Material.Texture.Length == 0));
+            var noAttachmentTextures =
+                mdm.Attachments.All(att => att.Value.Materials.All(mat => mat.Texture.Length == 0));
 
             if (noMeshTextures && noAttachmentTextures)
                 return null;
@@ -51,36 +53,46 @@ namespace GothicGodot
                 return Create(objectName, mdm, mdh, position, rotation, parent, rootGo);
         }
 
-        // public Node3D CreateVobDecal(IVirtualObject vob, VisualDecal decal, Node3D parent)
-        // {
-        //     // G1: One Decal has no value to recognize what it is. Most likely a setup bug to ignore at this point.
-        //     if (!vob.Name.IsEmpty())
-        //         return null;
-        //
-        //     var decalProjectorGo = new Node3D(vob.Name);
-        //     var decalProj = decalProjectorGo.AddComponent<DecalProjector>();
-        //     var texture = AssetCache.TryGetTexture(vob.Name);
-        //
-        //     // x/y needs to be made twice the size and transformed from cm in m.
-        //     // z - value is close to what we see in Gothic spacer.
-        //     decalProj.size = new(decal.Dimension.X * 2 / 100, decal.Dimension.Y * 2 / 100, 0.5f);
-        //     decalProjectorGo.SetParent(parent);
-        //     SetPosAndRot(decalProjectorGo, vob.Position.ToUnityVector(), vob.Rotation.ToUnityQuaternion());
-        //
-        //     decalProj.pivot = Vector3.zero;
-        //     decalProj.fadeFactor = DecalOpacity;
-        //
-        //     // FIXME use Prefab!
-        //     // https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@12.0/manual/creating-a-decal-projector-at-runtime.html
-        //     var standardShader = Constants.ShaderDecal;
-        //     var material = new Material(standardShader);
-        //     material.SetTexture(Shader.PropertyToID("Base_Map"), texture);
-        //
-        //     decalProj.material = material;
-        //
-        //     return decalProjectorGo;
-        // }
-        
+        public Node3D CreateVobDecal(IVirtualObject vob, VisualDecal decal, Node3D parent)
+        {
+            // G1: One Decal has no value to recognize what it is. Most likely a setup bug to ignore at this point.
+            if (vob.Name.Length == 0)
+                return null;
+
+            var decalProjectorGo = new Decal()
+            {
+                Name = vob.Name,
+            };
+            // var decalProj = decalProjectorGo.AddComponent<DecalProjector>();
+            var texture = AssetCache.TryGetTexture(vob.Name);
+
+            decalProjectorGo.Size = new Vector3(decal.Dimension.X / 100, decal.Dimension.Y / 100, 0.5f);
+            decalProjectorGo.TextureAlbedo = texture;
+
+            // x/y needs to be made twice the size and transformed from cm in m.
+            // z - value is close to what we see in Gothic spacer.
+            // decalProj.size = new(decal.Dimension.X * 2 / 100, decal.Dimension.Y * 2 / 100, 0.5f);
+            // decalProjectorGo.SetParent(parent);
+            parent.AddChild(decalProjectorGo);
+
+            decalProjectorGo.Owner = parent.Owner;
+            SetPosAndRot(decalProjectorGo, vob.Position.ToGodotVector(), Quaternion.Identity);
+
+
+            // decalProj.pivot = Vector3.zero;
+            // decalProj.fadeFactor = DecalOpacity;
+
+            // FIXME use Prefab!
+            // https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@12.0/manual/creating-a-decal-projector-at-runtime.html
+            // var standardShader = Constants.ShaderDecal;
+            // var material = new Material(standardShader);
+            // material.SetTexture(Shader.PropertyToID("Base_Map"), texture);
+            //
+            // decalProj.material = material;
+
+            return decalProjectorGo;
+        }
+
         /// <summary>
         /// Add ZengineSlot collider. i.e. positions where an NPC can sit on a bench.
         /// </summary>

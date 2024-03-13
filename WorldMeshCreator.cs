@@ -24,7 +24,7 @@ namespace GothicGodot
         // Needed e.g. for overwriting PrepareMeshRenderer() to change specific behaviour.
         private static readonly WorldMeshCreator Self = new();
 
-        public static async Task CreateAsync(WorldData world, Node3D parent, int meshesPerFrame)
+        public static void CreateAsync(WorldData world, Node3D parent, int meshesPerFrame)
         {
             var meshObj = new Node3D()
             {
@@ -55,37 +55,41 @@ namespace GothicGodot
 
                 meshObj.AddChild(subMeshObj);
                 subMeshObj.Owner = meshObj.Owner;
-                
+
                 var gdMesh = new ArrayMesh();
-                
+
                 var array = new Godot.Collections.Array();
-                
+
                 array.Resize((int)Mesh.ArrayType.Max);
-                
+
                 array[(int)Mesh.ArrayType.Vertex] = subMesh.Vertices.Select(x => x.ToGodotVector()).ToArray();
                 array[(int)Mesh.ArrayType.Normal] = subMesh.Normals.Select(x => x.ToGodotVector()).ToArray();
                 array[(int)Mesh.ArrayType.TexUV] = subMesh.Uvs.Select(x => x.ToGodotVector()).ToArray();
-                
+
                 gdMesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, array);
-                
+
                 var material = new StandardMaterial3D();
                 material.AlbedoTexture = AssetCache.TryGetTexture(subMesh.Material.Texture);
                 material.SpecularMode = BaseMaterial3D.SpecularModeEnum.Disabled;
                 material.MetallicSpecular = 0;
-                
-                // material.Uv1Scale = 100 * Vector3.One;
-                subMeshObj.MaterialOverride = material;
-                //
+                material.Transparency = BaseMaterial3D.TransparencyEnum.AlphaScissor;
+                material.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+
+                gdMesh.SurfaceSetMaterial(0, material);
                 subMeshObj.Mesh = gdMesh;
 
-                if (++meshesCreated % meshesPerFrame == 0)
-                    await Task.Yield(); // Yield to allow other operations to run in the frame
+                // if (++meshesCreated % meshesPerFrame == 0)
+                    // await Task.Yield(); // Yield to allow other operations to run in the frame
             }
         }
 
         protected void PrepareMeshRenderer(ArrayMesh mesh, WorldData.SubMeshData subMesh)
         {
             var materialData = subMesh.Material;
+            if (materialData.Texture.Length == 0)
+            {
+                return;
+            }
 
             var texture = GetTexture(materialData.Texture);
             if (null == texture)
@@ -96,7 +100,7 @@ namespace GothicGodot
                 }
                 else
                 {
-                    GD.Print("Couldn't get texture from name: " + materialData.Texture);
+                    GD.Print("WorldMeshCreator: Couldn't get texture from name: " + materialData.Texture);
                 }
             }
 

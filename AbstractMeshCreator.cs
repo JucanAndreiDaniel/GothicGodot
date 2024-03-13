@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -32,53 +33,65 @@ namespace GothicGodot
             Quaternion rotation, Node3D parent = null, Node3D rootGo = null)
         {
             rootGo ??= new Node3D(); // Create new object if it is a null-parameter until now.
-            rootGo.Name = objectName;
-            // rootGo.Reparent(parent, true, true);
-            // rootGo.Reparent(parent, true);
+            rootGo.Name = $"{objectName} {position}";
             parent.AddChild(rootGo);
-            var nodeObjects = new Node3D[mdh.Nodes.Count];
+            rootGo.Owner = parent.Owner;
+            SetPosAndRot(rootGo, position, rotation);
+            var nodeObjects = new MeshInstance3D[mdh.Nodes.Count];
 
             // Create empty Nodes from hierarchy
             {
-                // for (var i = 0; i < mdh.Nodes.Count; i++)
-                // {
-                //     var node = mdh.Nodes[i];
-                //     // We attached some Components to root of bones. Therefore reusing it.
-                //     if (node.Name.EqualsIgnoreCase("BIP01"))
-                //     {
-                //         var bip01 = rootGo.FindChildRecursively("BIP01");
-                //         if (bip01 != null)
-                //             nodeObjects[i] = rootGo.FindChildRecursively("BIP01");
-                //         else
-                //             nodeObjects[i] = new Node3D(mdh.Nodes[i].Name);
-                //     }
-                //     else
-                //     {
-                //         nodeObjects[i] = new Node3D(mdh.Nodes[i].Name);
-                //     }
-                // }
+                for (var i = 0; i < mdh.Nodes.Count; i++)
+                {
+                    var node = mdh.Nodes[i];
+                    // We attached some Components to root of bones. Therefore reusing it.
+                    if (node.Name.Equals("BIP01"))
+                    {
+                        var bip01 = rootGo.FindChild("BIP01", true);
+                        if (bip01 != null)
+                            nodeObjects[i] = rootGo.FindChild("BIP01", true) as MeshInstance3D;
+                        else
+                            nodeObjects[i] = new MeshInstance3D()
+                            {
+                                Name = mdh.Nodes[i].Name
+                            };
+                    }
+                    else
+                    {
+                        nodeObjects[i] = new MeshInstance3D()
+                        {
+                            Name = mdh.Nodes[i].Name
+                        };
+                    }
+                }
 
                 // Now set parents
-                // for (var i = 0; i < mdh.Nodes.Count; i++)
-                // {
-                //     var node = mdh.Nodes[i];
-                //     var nodeObj = nodeObjects[i];
-                //
-                //     // SetPosAndRot(nodeObj, node.Transform);
-                //
-                //     if (node.ParentIndex == -1)
-                //         rootGo.AddChild(nodeObj);
-                //     else
-                //         nodeObjects[node.ParentIndex].AddChild(nodeObj);
-                // }
-                //
-                // for (var i = 0; i < nodeObjects.Length; i++)
-                // {
-                //     if (mdh.Nodes[i].ParentIndex == -1)
-                //         nodeObjects[i].Position = mdh.RootTranslation.ToGodotVector();
-                //     else
-                //         SetPosAndRot(nodeObjects[i], mdh.Nodes[i].Transform);
-                // }
+                for (var i = 0; i < mdh.Nodes.Count; i++)
+                {
+                    var node = mdh.Nodes[i];
+                    var nodeObj = nodeObjects[i];
+
+                    SetPosAndRot(nodeObj, node.Transform);
+
+                    if (node.ParentIndex == -1)
+                    {
+                        rootGo.AddChild(nodeObj);
+                        nodeObj.Owner = rootGo.Owner;
+                    }
+                    else
+                    {
+                        nodeObjects[node.ParentIndex].AddChild(nodeObj);
+                        nodeObj.Owner = nodeObjects[node.ParentIndex].Owner;
+                    }
+                }
+
+                for (var i = 0; i < nodeObjects.Length; i++)
+                {
+                    if (mdh.Nodes[i].ParentIndex == -1)
+                        nodeObjects[i].Position = mdh.RootTranslation.ToGodotVector();
+                    else
+                        SetPosAndRot(nodeObjects[i], mdh.Nodes[i].Transform);
+                }
             }
 
             //// Fill Nodes with Meshes from "original" Mesh
@@ -90,23 +103,12 @@ namespace GothicGodot
                 var meshObj = new MeshInstance3D();
                 meshObj.Name = $"ZM_{meshCounter++}";
                 rootGo.AddChild(meshObj);
+                meshObj.Owner = rootGo.Owner;
 
                 var arrayMesh = PrepareMeshFilter(softSkinMesh);
                 PrepareMeshRenderer(arrayMesh, mesh);
 
-
                 meshObj.Mesh = arrayMesh;
-
-                // var meshFilter = meshObj.AddComponent<MeshFilter>();
-                // var meshRenderer = meshObj.AddComponent<SkinnedMeshRenderer>();
-
-                // FIXME - hard coded as it's the right value for BSFire. Need to be more dynamic by using element which has parent=-1.
-                // meshRenderer.rootBone = nodeObjects[0].transform;
-
-                // PrepareMeshRenderer(meshRenderer, mesh);
-                // PrepareMeshFilter(meshFilter, softSkinMesh);
-
-                // meshRenderer.sharedMesh = meshFilter.mesh;
 
                 // CreateBonesData(rootGo, nodeObjects, meshRenderer, softSkinMesh);
             }
@@ -116,7 +118,18 @@ namespace GothicGodot
             // Fill Nodes with Meshes from attachments
             foreach (var subMesh in attachments)
             {
-                // var meshObj = nodeObjects.First(bone => bone.name == subMesh.Key);
+                // var meshObj = new MeshInstance3D();
+                // meshObj.Name = subMesh.Key;
+                // rootGo.AddChild(meshObj);
+                // meshObj.Owner = rootGo.Owner;
+                //
+                var meshObj = nodeObjects.First(bone => bone.Name == subMesh.Key);
+
+                var arrayMesh = PrepareMeshFilter(subMesh.Value);
+                PrepareMeshRenderer(arrayMesh, subMesh.Value);
+
+
+                meshObj.Mesh = arrayMesh;
                 // var meshFilter = meshObj.AddComponent<MeshFilter>();
                 // var meshRenderer = meshObj.AddComponent<MeshRenderer>();
                 //
@@ -161,6 +174,7 @@ namespace GothicGodot
             rootGo ??= new MeshInstance3D();
             rootGo.Name = objectName;
             parent.AddChild(rootGo);
+            rootGo.Owner = parent.Owner;
             SetPosAndRot(rootGo, position, rotation);
 
             var arrayMesh = PrepareMeshFilter(mrm, false);
@@ -199,11 +213,14 @@ namespace GothicGodot
                 // GD.Print("No mesh data could be added to renderer: " +);
                 return;
             }
-        
+
             for (var index = 0; index < mrmData.SubMeshes.Count; index++)
             {
                 var subMesh = mrmData.SubMeshes[index];
                 var materialData = subMesh.Material;
+
+                if (materialData.Texture.Length == 0)
+                    continue;
 
                 var texture = GetTexture(materialData.Texture);
                 if (null == texture)
@@ -217,18 +234,20 @@ namespace GothicGodot
                         GD.Print("Couldn't get texture from name: " + materialData.Texture);
                     }
                 }
-                
+
                 var material = new StandardMaterial3D();
                 material.AlbedoTexture = texture;
                 material.SpecularMode = BaseMaterial3D.SpecularModeEnum.Disabled;
                 material.MetallicSpecular = 0;
                 material.Transparency = BaseMaterial3D.TransparencyEnum.AlphaScissor;
+                material.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
 
                 mesh.SurfaceSetMaterial(index, material);
             }
 
             // rend.SetMaterials(finalMaterials);
         }
+
         //
         protected ArrayMesh PrepareMeshFilter(IMultiResolutionMesh mrmData, bool isMorphMesh = false,
             string morphMeshName = "")
@@ -328,7 +347,7 @@ namespace GothicGodot
                 }
 
                 preparedTriangles.Add(subMeshTriangles);
-                
+
                 // preparedVertices.Reverse();
                 // preparedUVs.Reverse();
                 // preparedTriangles.SelectMany(i => i).Reverse();
@@ -380,12 +399,14 @@ namespace GothicGodot
             array.Resize((int)Mesh.ArrayType.Max);
 
             var zkMesh = soft.Mesh;
-            // var weights = soft.Weights;
+            var weights = soft.Weights;
 
             var verticesAndUvSize = zkMesh.SubMeshes.Sum(i => i.Triangles!.Count) * 3;
             var preparedVertices = new List<Vector3>(verticesAndUvSize);
             var preparedUVs = new List<Vector2>(verticesAndUvSize);
-            // var preparedBoneWeights = new List<BoneWeight>(verticesAndUvSize);
+            var boneIndices = new List<int>(verticesAndUvSize);
+            var boneWeights = new List<float>(verticesAndUvSize);
+            var preparedBoneWeights = new Tuple<List<int>, List<float>>(boneIndices, boneWeights);
 
             // 2-dimensional arrays (as there are segregated by submeshes)
             var preparedTriangles = new List<List<int>>(zkMesh.SubMeshes.Count);
@@ -422,14 +443,24 @@ namespace GothicGodot
                     preparedUVs.Add(index2.Texture.ToGodotVector());
                     preparedUVs.Add(index3.Texture.ToGodotVector());
 
-                    // preparedBoneWeights.Add(weights[index1.Index].ToBoneWeight(soft.Nodes));
-                    // preparedBoneWeights.Add(weights[index2.Index].ToBoneWeight(soft.Nodes));
-                    // preparedBoneWeights.Add(weights[index3.Index].ToBoneWeight(soft.Nodes));
+                    var weight1 = weights[index1.Index].ToBoneWeight(soft.Nodes);
+                    var weight2 = weights[index2.Index].ToBoneWeight(soft.Nodes);
+                    var weight3 = weights[index3.Index].ToBoneWeight(soft.Nodes);
+
+
+                    preparedBoneWeights.Item1.AddRange(weight1.Item1);
+                    preparedBoneWeights.Item2.AddRange(weight1.Item2);
+
+                    preparedBoneWeights.Item1.AddRange(weight2.Item1);
+                    preparedBoneWeights.Item2.AddRange(weight2.Item2);
+
+                    preparedBoneWeights.Item1.AddRange(weight3.Item1);
+                    preparedBoneWeights.Item2.AddRange(weight3.Item2);
                 }
 
                 preparedTriangles.Add(subMeshTriangles);
-                
-                
+
+
                 // preparedVertices.Reverse();
                 // preparedUVs.Reverse();
                 // preparedTriangles.SelectMany(i => i).Reverse();
@@ -438,6 +469,8 @@ namespace GothicGodot
 
                 array[(int)Mesh.ArrayType.Vertex] = preparedVertices.ToArray();
                 array[(int)Mesh.ArrayType.TexUV] = preparedUVs.ToArray();
+                array[(int)Mesh.ArrayType.Bones] = preparedBoneWeights.Item1.ToArray();
+                array[(int)Mesh.ArrayType.Weights] = preparedBoneWeights.Item2.ToArray();
                 mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, array);
             }
 

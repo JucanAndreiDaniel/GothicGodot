@@ -50,10 +50,10 @@ namespace GothicGodot
             return VobMeshCreator.CreateVob(objectName, mdm, mdh, position, rotation, parent, rootGo);
         }
 
-        // public static Node3D CreateVobDecal(IVirtualObject vob, VisualDecal decal, Node3D parent)
-        // {
-        //     return VobMeshCreator.CreateVobDecal(vob, decal, parent);
-        // }
+        public static Node3D CreateVobDecal(IVirtualObject vob, VisualDecal decal, Node3D parent)
+        {
+            return VobMeshCreator.CreateVobDecal(vob, decal, parent);
+        }
         
         // public static Node3D CreateBarrier(string objectName, IMesh mesh)
         // {

@@ -76,13 +76,13 @@ public partial class ZenkitSingleton : Node
         }
     }
 
-    private async void ProcessWorld()
+    private void ProcessWorld()
     {
         GD.Print("Loading World");
         MountVfs(G1Dir);
         GameData.World = LoadWorld();
 
-        var rootNode = GetNode("WorldRoot");
+        var rootNode = GetNode<Node3D>("WorldRoot");
 
         var teleportRootNode = new Node3D()
         {
@@ -98,8 +98,9 @@ public partial class ZenkitSingleton : Node
         teleportRootNode.Owner = GetTree().EditedSceneRoot;
         nonTeleportRootNode.Owner = GetTree().EditedSceneRoot;
 
-        await WorldMeshCreator.CreateAsync(GameData.World, teleportRootNode, 100);
-        await VobCreator.CreateAsync(teleportRootNode, nonTeleportRootNode, GameData.World, 100);
+        WorldMeshCreator.CreateAsync(GameData.World, teleportRootNode, 100);
+        VobCreator.CreateAsync(teleportRootNode, nonTeleportRootNode, GameData.World, 100);
+        WaynetCreator.Create(rootNode, GameData.World);
     }
 
     private WorldData LoadWorld()

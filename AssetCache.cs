@@ -3,21 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
-// using GVR.Creator.Sounds;
-// using GVR.Data;
-// using GVR.Extensions;
-// using GVR.Globals;
-// using JetBrains.Annotations;
-// using UnityEngine;
-// using UnityEngine.Rendering;
-// using UnityEngine.Tilemaps;
 using ZenKit;
 using ZenKit.Daedalus;
 using Font = ZenKit.Font;
 using Mesh = ZenKit.Mesh;
-
-// using Object = UnityEngine.Object;
 
 namespace GothicGodot
 {
@@ -76,17 +65,19 @@ namespace GothicGodot
             {
                 return TextureCache[preparedKey];
             }
+
             ImageTexture imageTexture = null;
             try
             {
                 imageTexture = ImportZenTexture(preparedKey);
-                TextureCache.Add(preparedKey, imageTexture);
             }
             catch (Exception e)
             {
                 GD.PrintErr(e);
                 return null;
             }
+
+            TextureCache.TryAdd(preparedKey, imageTexture);
 
             return imageTexture;
         }
@@ -118,6 +109,7 @@ namespace GothicGodot
             {
                 return null;
             }
+
             var image = new Image();
 
             image.SetData(texture.Width, texture.Height, false, Image.Format.Rgba8,
